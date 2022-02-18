@@ -1,0 +1,89 @@
+<html>
+<head>
+    <!--
+        Title: JavaScript-WebGL2學習筆記六 - 設備座標下拾取物體
+        Date: 2018-4-03  
+        Author: kagula  
+  
+        Description:  
+        實現對象的拾取比較複雜，所以打算分兩步來做, 先做二維座標裏的對象拾取。
+        演示WebGL NDC(Native Device Coordinator)座標系統下，對象拾取功能。
+        *一個紅色和綠色距形代表被拾取對象。
+        *藍色距形表示光標位置。
+        *被拾取對象在光標下面，就會被render成白色。
+
+        拾取原理:
+        採用了frame buffer object的辦法,  把object id當作pixel, render到看不見的屏幕上,
+        然後在這個屏幕上檢查當前光標下是否存在object id, 如果有, 就說明光標在這個object id所代表的對象上.
+        
+  
+        Reference: 
+        [1]《WebGL(陸) texParameteri參數說明》
+        https://www.web-tinker.com/article/20163.html
+  
+        Run environment  
+        [1]Chrome 65.0.3325.162  
+        [2]nginx  1.12.2  
+  
+        Remark
+    -->  
+
+    <title>JavaScript-WebGL2學習筆記六 - 設備座標下拾取物體</title>
+
+    <meta charset="utf-8">
+    <!-- gl-matrix version 2.4.0 from http://glmatrix.net/ -->
+    <script type="text/javascript" src="gl-matrix-min.js"></script>
+
+    <script type="text/javascript" src="webgl_helper.js"></script>
+    <script type="text/javascript" src="shader.js"></script>
+    <script type="text/javascript" src="shape.js"></script>
+</head>
+
+<body>
+    <canvas id="glCanvas" width="320" height="200"></canvas>
+</body>
+
+</html>
+
+<script>
+    const g_canvas = document.querySelector("#glCanvas");
+    var gl;
+
+    main();
+    
+    function main() {
+        gl = g_canvas.getContext("webgl2", {stencil: true});    
+
+        if (!gl) {
+            alert("Unable to initialize WebGL2. Your browser or machine may not support it.");
+            return;
+        }        
+
+        var contextAttributes = gl.getContextAttributes();
+        if (!contextAttributes.stencil) {
+            alert("Unable to support stencil.");
+            return;
+        }      
+
+        initProgram(gl);
+        initProgram2(gl);
+        initScene(gl);
+        initTextureFramebuffer(g_canvas.width, g_canvas.height) 
+        drawPickObj(gl);
+    }//main
+
+    function handleMouseMove(event) {
+        //client座標轉NDC(native device coordinate)座標
+        var newX = event.clientX;
+        var newY = event.clientY;
+
+        var x = ( newX / g_canvas.width ) * 2 - 1;
+        var y = - ( newY / g_canvas.height ) * 2 + 1;
+        //console.log("x=" + x + ",y=" + y);
+
+        //
+        drawCursorLocation(gl ,x ,y ,newX ,newY);
+    }
+
+    g_canvas.onmousemove  = handleMouseMove;
+</script>
