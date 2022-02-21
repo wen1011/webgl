@@ -32,7 +32,7 @@ function main() {
         */
 
     //The key difference here is that for each vertex, we pass its color using a varying to the fragment shader.
-    //todo vec2
+    // vec2
     const vsSource = `
         attribute vec4 aVertexPosition;
         attribute vec2 aTextureCoord;
@@ -52,8 +52,8 @@ function main() {
     // 片段著色器
     // 顏色存儲在特殊變量gl_FragColor中，返回到WebGL層
     //3.為了要讓每個 pixel 使用內插的顏色，我們讓 gl_FragColor 取得 vColor的值。
-    //todo 现在的代码不会再使用一个简单的颜色值填充片段颜色，片段的颜色是通过采样器使用最好的映射方式从纹理中的每一个像素计算出来的。
-    //todo vec2
+    // 现在的代码不会再使用一个简单的颜色值填充片段颜色，片段的颜色是通过采样器使用最好的映射方式从纹理中的每一个像素计算出来的。
+    // vec2
     const fsSource = `
         varying highp vec2 vTextureCoord;
         uniform sampler2D uSampler;
@@ -68,7 +68,7 @@ function main() {
     // Look up which attribute our shader program is using
     // for aVertexPosition and look up uniform locations.
     // 4. Next, it's necessary to add the code look up the attribute location for the colors and setup that attribute for the shader program:
-    //todo 包含纹理坐标信息的属性替换之前使用的顶点颜色属性
+    // 包含纹理坐标信息的属性替换之前使用的顶点颜色属性
     const programInfo = {
         program: shaderProgram,
         attribLocations: {
@@ -145,16 +145,16 @@ function initShaderProgram(gl, vsSource, fsSource) {
     }
     return shaderProgram
 }
-//todo  Initialize a texture and load an image.
-//todo  When the image finished loading copy it into the texture.
+//  Initialize a texture and load an image.
+//  When the image finished loading copy it into the texture.
 function loadTexture(gl, url) {
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
-    //  todo 因為圖像必須通過互聯網下載
-    // todo 他們可能需要一點時間才能準備好。
-    // todo 在那之前在紋理中放置一個像素，這樣我們就可以
-    // todo 圖像下載完成後立即使用。
-    // todo 我們將使用圖像的內容更新紋理。
+    //   因為圖像必須通過互聯網下載
+    //  他們可能需要一點時間才能準備好。
+    //  在那之前在紋理中放置一個像素，這樣我們就可以
+    //  圖像下載完成後立即使用。
+    //  我們將使用圖像的內容更新紋理。
 
     const level = 0
     const internalFormat = gl.RGBA
@@ -170,26 +170,26 @@ function loadTexture(gl, url) {
     image.onload = function () {
         gl.bindTexture(gl.TEXTURE_2D, texture)
         gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image)
-        // todo WebGL1對2張圖片的冪有不同的要求
-        // todo 與 2 個圖像的非冪次比較，因此檢查圖像是否為兩個維度的 2 的冪。
+        //  WebGL1對2張圖片的冪有不同的要求
+        //  與 2 個圖像的非冪次比較，因此檢查圖像是否為兩個維度的 2 的冪。
         if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-            //todo yes!!
+            // yes!!
             gl.generateMipmap(gl.TEXTURE_2D)
         } else {
-            // todo no!! 非二冪 重新設定
-            //todo 现在，当使用以上参数时，兼容WebGL的设备就会自动变得可以使用任何分辨率的纹理（当然还要考虑像素上限）。如果不使用上面这些参数的话，任何非2的幂纹理使用都会失败然后返回一张纯黑图片。
-            //todo * // gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.  *//
+            //  no!! 非二冪 重新設定
+            // 现在，当使用以上参数时，兼容WebGL的设备就会自动变得可以使用任何分辨率的纹理（当然还要考虑像素上限）。如果不使用上面这些参数的话，任何非2的幂纹理使用都会失败然后返回一张纯黑图片。
+            // * // gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.  *//
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-            //todo Prevents s-coordinate wrapping (repeating).
+            // Prevents s-coordinate wrapping (repeating).
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-            //todo Prevents t-coordinate wrapping (repeating).
+            // Prevents t-coordinate wrapping (repeating).
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
         }
     }
     image.src = url
     return texture
 }
-//todo
+//
 function isPowerOf2(value) {
     return (value & (value - 1)) == 0
 }
@@ -244,21 +244,40 @@ function initBuffers(gl) {
     //然後將其轉化為WebGL 浮點型類型的數組，
     //並將其傳到gl對象的方法來建立對象的頂點。(bufferData())
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
-    //todo
+    //todo 建立一個數組來存放立方體所有頂點的法線
+    const normalBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
+    const vertexNormals = [
+        //todo front
+        0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+        //todo back
+        0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0,
+        //todo top
+        0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
+        //todo bottom
+        0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0,
+
+        //todo right
+        1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+        //todo left
+        -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0,
+    ]
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW)
+
     const textureCoordBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer)
     const textureCoordinates = [
-        //todo front
+        // front
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        //todo back
+        // back
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        //todo top
+        // top
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        //todo bottom
+        // bottom
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        //todo right
+        // right
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        //todo left
+        // left
         0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
     ]
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW)
@@ -329,9 +348,10 @@ function initBuffers(gl) {
     ]
     // 現在將元素數組發送到 GL
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW)
-    //todo textureCoord: textureCoordBuffer
+    // textureCoord: textureCoordBuffer
     return {
         position: positionBuffer,
+        normal: normalBuffer,
         textureCoord: textureCoordBuffer,
         indices: indexBuffer,
     }
