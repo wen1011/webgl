@@ -33,19 +33,32 @@ function main() {
 
     //The key difference here is that for each vertex, we pass its color using a varying to the fragment shader.
     // vec2
+    //TODO 一頂點座標位置計算出頂點陰影
+    //TODO 先根據立方位置與朝向，透過頂點法線*法線矩陣=法線
+    //TODO 法線*方向向量(光的方向)=頂點反射方向光的量，固定為0
+    //TODO 通過獲取環境光+方向光的顏色+像亮光的量=光照值(lighting value)=RGB，用於片段著色器
     const vsSource = `
         attribute vec4 aVertexPosition;
+        attribute vec3 aVertexNormal;
         attribute vec2 aTextureCoord;
 
-
+        uniform mat4 uNormalMatrix;
         uniform mat4 uModelViewMatrix;
         uniform mat4 uProjectionMatrix;
 
         varying highp vec2 vTextureCoord;
+        varying highp vec3 vLighting;
 
         void main(void){
-            gl_Position=uProjectionMatrix* uModelViewMatrix* aVertexPosition;
-            vTextureCoord=aTextureCoord;
+            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            vTextureCoord = aTextureCoord;
+            // Apply lighting effect
+            highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+            highp vec3 directionalLightColor = vec3(1, 1, 1);
+            highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+            highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+            highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+            vLighting = ambientLight + (directionalLightColor * directional);
         }
         `
 
@@ -54,12 +67,15 @@ function main() {
     //3.為了要讓每個 pixel 使用內插的顏色，我們讓 gl_FragColor 取得 vColor的值。
     // 现在的代码不会再使用一个简单的颜色值填充片段颜色，片段的颜色是通过采样器使用最好的映射方式从纹理中的每一个像素计算出来的。
     // vec2
+    //todo 需要依照頂點著色器計算出的光照值來更新
     const fsSource = `
-        varying highp vec2 vTextureCoord;
-        uniform sampler2D uSampler;
-        void main(void) {
-          gl_FragColor = texture2D(uSampler,vTextureCoord);
-        }
+    varying highp vec2 vTextureCoord;
+    varying highp vec3 vLighting;
+    uniform sampler2D uSampler;
+    void main(void) {
+      highp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+      gl_FragColor = vec4(texelColor.rgb * vLighting, texelColor.a);
+    }
       `
     // Initialize a shader program; this is where all the lighting
     // for the vertices and so forth is established.
@@ -73,10 +89,12 @@ function main() {
         program: shaderProgram,
         attribLocations: {
             vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+            vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
             textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
         },
         uniformLocations: {
             projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+            normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
             modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
             uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
         },
@@ -90,7 +108,7 @@ function main() {
     //  squareRotation 值的代碼。
     //  我們可以通過創建一個新變量來跟踪我們上次動畫的時間（then）來做到這一點，
     //  然後將以下代碼添加到 main 函數的末尾
-    const texture = loadTexture(gl, 'd3268416.jpg')
+    const texture = loadTexture(gl, '686d55c7ecf19d512c1c76d786d2310c.jpg')
     var then = 0
     //  draw the scene repeatedly
     function render(now) {
@@ -189,6 +207,7 @@ function loadTexture(gl, url) {
     image.src = url
     return texture
 }
+
 //
 function isPowerOf2(value) {
     return (value & (value - 1)) == 0
@@ -262,6 +281,7 @@ function initBuffers(gl) {
         //todo left
         -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0,
     ]
+    //todo将它和gl.ARRAY_BUFFER绑定在一起，然后通过调用bufferData()把我们的顶点法线数组一起传入。
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW)
 
     const textureCoordBuffer = gl.createBuffer()
@@ -422,8 +442,11 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
     // 由於我們的立方體的每個面都由兩個三角形組成，因此每邊有 6 個頂點，或者立方體中總共有 36 個頂點，儘管其中許多頂點是重複的。
     //  最後，讓我們用 cubeRotation 替換我們的變量 squareRotation 並添加第二個圍繞 x 軸的旋轉：
 
-    mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotation * 1.9, [0, 1, 0])
-
+    mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotation * 0.7, [0, 1, 0])
+    //todo 我們需要更新構建統一矩陣的代碼，以生成並傳遞給著色器一個法線矩陣，該矩陣用於在處理立方體相對於光源的當前方向時轉換法線：
+    const normalMatrix = mat4.create()
+    mat4.invert(normalMatrix, modelViewMatrix)
+    mat4.transpose(normalMatrix, normalMatrix)
     // Tell WebGL how to pull out the positions from the position
     // buffer into the vertexPosition attribute.
     // 告訴 WebGL 如何從倉位中拉出倉位
@@ -457,7 +480,18 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
         gl.vertexAttribPointer(programInfo.attribLocations.textureCoord, numComponents, type, normalize, stride, offset)
         gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord)
     }
-
+    {
+        //TODO Tell Webgl how to pull out the normals form
+        //todo the normal buffer into the vertexNormal attribute.
+        const numComponents = 3
+        const type = gl.FLOAT
+        const normalize = false
+        const stride = 0
+        const offset = 0
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal)
+        gl.vertexAttribPointer(programInfo.attribLocations.vertexNormal, numComponents, type, normalize, stride, offset)
+        gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal)
+    }
     // Tell WebGL which indices to use to index the vertices
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices)
     // Tell WebGL to use our program when drawing
@@ -465,9 +499,11 @@ function drawScene(gl, programInfo, buffers, texture, deltaTime) {
     gl.useProgram(programInfo.program)
 
     // Set the shader uniforms
-
+    //todo轉換法線
     gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
     gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
+    gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix)
+
     // Specify the texture to map onto the faces.
 
     // Tell WebGL we want to affect texture unit 0
